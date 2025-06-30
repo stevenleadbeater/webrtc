@@ -176,7 +176,7 @@ pub(crate) fn validate_config(is_client: bool, config: &Config) -> Result<()> {
         match cert.private_key.kind {
             CryptoPrivateKeyKind::Ed25519(_) => {}
             CryptoPrivateKeyKind::Ecdsa256(_) => {}
-            _ => return Err(Error::ErrInvalidPrivateKey),
+            CryptoPrivateKeyKind::Rsa256(_) => {}
         }
     }
 
