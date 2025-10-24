@@ -217,6 +217,7 @@ impl Flight for Flight4 {
                 &state.peer_certificates,
                 cfg.insecure_verification,
             ) {
+                error!("[handshake] verify_certificate_verify failed {:?}", err);
                 return Err((
                     Some(Alert {
                         alert_level: AlertLevel::Fatal,
