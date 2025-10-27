@@ -19,7 +19,7 @@ use rustls::server::danger::ClientCertVerifier;
 
 use rcgen::{generate_simple_self_signed, CertifiedKey, KeyPair};
 use ring::rand::SystemRandom;
-use ring::signature::{EcdsaKeyPair, Ed25519KeyPair};
+use ring::signature::{EcdsaKeyPair, Ed25519KeyPair, KeyPair as RingKeyPair};
 
 use crate::curve::named_curve::*;
 use crate::error::*;
@@ -266,8 +266,37 @@ pub(crate) fn generate_key_signature(
     private_key: &CryptoPrivateKey, /*, hash_algorithm: HashAlgorithm*/
 ) -> Result<Vec<u8>> {
     let msg = value_key_message(client_random, server_random, public_key, named_curve);
+
+    log::info!(
+        "generate_key_signature: client_random={}, server_random={}, public_key={}, curve={:?}",
+        bytes_to_hex(client_random),
+        bytes_to_hex(server_random),
+        bytes_to_hex(public_key),
+        named_curve
+    );
+    log::info!(
+        "generate_key_signature: message_len={}, message_hex={}",
+        msg.len(),
+        bytes_to_hex(&msg)
+    );
+
     let signature = match &private_key.kind {
-        CryptoPrivateKeyKind::Ed25519(kp) => kp.sign(&msg).as_ref().to_vec(),
+        CryptoPrivateKeyKind::Ed25519(kp) => {
+            log::info!("generate_key_signature: using Ed25519");
+            let public_key_bytes = kp.public_key().as_ref();
+            log::info!(
+                "generate_key_signature: Ed25519 public_key_len={}, public_key_hex={}",
+                public_key_bytes.len(),
+                bytes_to_hex(public_key_bytes)
+            );
+            let sig = kp.sign(&msg).as_ref().to_vec();
+            log::info!(
+                "generate_key_signature: Ed25519 signature_len={}, signature_hex={}",
+                sig.len(),
+                bytes_to_hex(&sig)
+            );
+            sig
+        }
         CryptoPrivateKeyKind::Ecdsa256(kp) => {
             let system_random = SystemRandom::new();
             kp.sign(&system_random, &msg)
