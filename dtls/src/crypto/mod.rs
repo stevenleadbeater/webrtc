@@ -304,12 +304,27 @@ fn verify_signature(
     raw_certificates: &[Vec<u8>],
     insecure_verification: bool,
 ) -> Result<()> {
+    log::info!(
+        "verify_signature: message_len={}, hash_alg={:?}, signature_len={}, certs_count={}, insecure={}",
+        message.len(),
+        hash_algorithm,
+        remote_key_signature.len(),
+        raw_certificates.len(),
+        insecure_verification
+    );
+
     if raw_certificates.is_empty() {
+        log::warn!("verify_signature: no certificates provided");
         return Err(Error::ErrLengthMismatch);
     }
 
     let (_, certificate) = x509_parser::parse_x509_certificate(&raw_certificates[0])
-        .map_err(|e| Error::Other(e.to_string()))?;
+        .map_err(|e| {
+            log::error!("verify_signature: failed to parse certificate: {}", e);
+            Error::Other(e.to_string())
+        })?;
+
+    log::info!("verify_signature: certificate parsed successfully");
 
     let verify_alg: &dyn ring::signature::VerificationAlgorithm = match hash_algorithm.signature {
         SignatureAlgorithm::Ed25519 => &ring::signature::ED25519,
@@ -339,7 +354,13 @@ fn verify_signature(
                 &ring::signature::RSA_PKCS1_2048_8192_SHA512
             }
         }
-        _ => return Err(Error::ErrKeySignatureVerifyUnimplemented),
+        _ => {
+            log::error!(
+                "verify_signature: unsupported signature algorithm: {:?}",
+                hash_algorithm
+            );
+            return Err(Error::ErrKeySignatureVerifyUnimplemented);
+        }
     };
 
     log::trace!("Picked an algorithm {:?}", verify_alg);
@@ -353,9 +374,16 @@ fn verify_signature(
             .data,
     );
 
+    log::info!("verify_signature: verifying signature with selected algorithm");
+
     public_key
         .verify(message, remote_key_signature)
-        .map_err(|e| Error::Other(e.to_string()))?;
+        .map_err(|e| {
+            log::error!("verify_signature: signature verification failed: {}", e);
+            Error::Other(e.to_string())
+        })?;
+
+    log::info!("verify_signature: signature verified successfully");
 
     Ok(())
 }
