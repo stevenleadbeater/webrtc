@@ -297,6 +297,10 @@ pub(crate) fn generate_key_signature(
 pub const OID_ED25519: Oid<'static> = oid!(1.3.101 .112);
 pub const OID_ECDSA: Oid<'static> = oid!(1.2.840 .10045 .2 .1);
 
+fn bytes_to_hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{:02x}", b)).collect()
+}
+
 fn verify_signature(
     message: &[u8],
     hash_algorithm: &SignatureHashAlgorithm,
@@ -325,6 +329,11 @@ fn verify_signature(
         })?;
 
     log::info!("verify_signature: certificate parsed successfully");
+    log::info!(
+        "verify_signature: cert subject={:?}, cert algorithm={:?}",
+        certificate.tbs_certificate.subject,
+        certificate.signature_algorithm.algorithm
+    );
 
     let verify_alg: &dyn ring::signature::VerificationAlgorithm = match hash_algorithm.signature {
         SignatureAlgorithm::Ed25519 => &ring::signature::ED25519,
@@ -365,13 +374,29 @@ fn verify_signature(
 
     log::trace!("Picked an algorithm {:?}", verify_alg);
 
+    let public_key_bytes = certificate
+        .tbs_certificate
+        .subject_pki
+        .subject_public_key
+        .data;
+
+    log::info!(
+        "verify_signature: public_key_len={}, public_key_hex={}",
+        public_key_bytes.len(),
+        bytes_to_hex(&public_key_bytes)
+    );
+    log::info!(
+        "verify_signature: message_hex={}",
+        bytes_to_hex(message)
+    );
+    log::info!(
+        "verify_signature: signature_hex={}",
+        bytes_to_hex(remote_key_signature)
+    );
+
     let public_key = ring::signature::UnparsedPublicKey::new(
         verify_alg,
-        certificate
-            .tbs_certificate
-            .subject_pki
-            .subject_public_key
-            .data,
+        public_key_bytes,
     );
 
     log::info!("verify_signature: verifying signature with selected algorithm");
