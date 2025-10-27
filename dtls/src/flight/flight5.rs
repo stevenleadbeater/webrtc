@@ -2,7 +2,7 @@ use std::fmt;
 use std::io::{BufReader, BufWriter};
 
 use async_trait::async_trait;
-
+use log::error;
 use super::flight3::*;
 use super::*;
 use crate::change_cipher_spec::ChangeCipherSpec;
@@ -719,6 +719,7 @@ async fn initialize_cipher_suite(
             &state.peer_certificates,
             cfg.insecure_verification,
         ) {
+            error!("[handshake] verify_certificate_verify failed {:?}", err);
             return Err((
                 Some(Alert {
                     alert_level: AlertLevel::Fatal,
@@ -737,6 +738,7 @@ async fn initialize_cipher_suite(
             ) {
                 Ok(chains) => chains,
                 Err(err) => {
+                    error!("[handshake] verify_certificate_verify failed {:?}", err);
                     return Err((
                         Some(Alert {
                             alert_level: AlertLevel::Fatal,
@@ -749,6 +751,7 @@ async fn initialize_cipher_suite(
         }
         if let Some(verify_peer_certificate) = &cfg.verify_peer_certificate {
             if let Err(err) = verify_peer_certificate(&state.peer_certificates, &chains) {
+                error!("[handshake] verify_certificate_verify failed {:?}", err);
                 return Err((
                     Some(Alert {
                         alert_level: AlertLevel::Fatal,
