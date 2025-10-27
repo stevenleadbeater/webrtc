@@ -322,6 +322,12 @@ fn verify_signature(
         return Err(Error::ErrLengthMismatch);
     }
 
+    log::info!(
+        "verify_signature: raw_certificate[0] len={}, first 100 bytes={}",
+        raw_certificates[0].len(),
+        bytes_to_hex(&raw_certificates[0][..raw_certificates[0].len().min(100)])
+    );
+
     let (_, certificate) = x509_parser::parse_x509_certificate(&raw_certificates[0])
         .map_err(|e| {
             log::error!("verify_signature: failed to parse certificate: {}", e);
@@ -400,6 +406,12 @@ fn verify_signature(
 
     log::trace!("Picked an algorithm {:?}", verify_alg);
 
+    log::info!(
+        "verify_signature: subject_public_key.len()={}, subject_public_key hex={}",
+        certificate.tbs_certificate.subject_pki.subject_public_key.as_ref().len(),
+        bytes_to_hex(certificate.tbs_certificate.subject_pki.subject_public_key.as_ref())
+    );
+
     let public_key_bytes = certificate
         .tbs_certificate
         .subject_pki
@@ -407,7 +419,7 @@ fn verify_signature(
         .data;
 
     log::info!(
-        "verify_signature: public_key_len={}, public_key_hex={}",
+        "verify_signature: public_key_bytes(data).len()={}, public_key_hex={}",
         public_key_bytes.len(),
         bytes_to_hex(&public_key_bytes)
     );
