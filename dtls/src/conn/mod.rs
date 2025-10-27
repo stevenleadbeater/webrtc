@@ -817,6 +817,7 @@ impl DTLSConn {
 
                 if let Err(alert_err) = alert_err {
                     if err.is_none() {
+                        error!("[handshake] verify_certificate_verify failed {:?}", err);
                         err = Some(Error::Other(alert_err.to_string()));
                     }
                 }
