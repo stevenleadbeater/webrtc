@@ -235,6 +235,7 @@ impl Flight for Flight4 {
                         match verify_client_cert(&state.peer_certificates, client_cert_verifier) {
                             Ok(chains) => chains,
                             Err(err) => {
+                                error!("[handshake] verify_certificate_verify failed {:?}", err);
                                 return Err((
                                     Some(Alert {
                                         alert_level: AlertLevel::Fatal,
@@ -245,6 +246,7 @@ impl Flight for Flight4 {
                             }
                         };
                 } else {
+                    error!("[handshake] No client_cert_verifier provided");
                     return Err((
                         Some(Alert {
                             alert_level: AlertLevel::Fatal,
@@ -258,6 +260,7 @@ impl Flight for Flight4 {
             }
             if let Some(verify_peer_certificate) = &cfg.verify_peer_certificate {
                 if let Err(err) = verify_peer_certificate(&state.peer_certificates, &chains) {
+                    error!("[handshake] verify_certificate_verify failed {:?}", err);
                     return Err((
                         Some(Alert {
                             alert_level: AlertLevel::Fatal,
@@ -461,6 +464,10 @@ impl Flight for Flight4 {
             }
             ClientAuthType::VerifyClientCertIfGiven => {
                 if !state.peer_certificates.is_empty() && !state.peer_certificates_verified {
+                    error!(
+                        "{} client certificate presented but not verified",
+                        srv_cli_str(state.is_client)
+                    );
                     return Err((
                         Some(Alert {
                             alert_level: AlertLevel::Fatal,
@@ -481,6 +488,7 @@ impl Flight for Flight4 {
                     ));
                 }
                 if !state.peer_certificates_verified {
+                    error!("{} client certificate presented but not verified", srv_cli_str(state.is_client));
                     return Err((
                         Some(Alert {
                             alert_level: AlertLevel::Fatal,
