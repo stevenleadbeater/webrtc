@@ -330,10 +330,36 @@ fn verify_signature(
 
     log::info!("verify_signature: certificate parsed successfully");
     log::info!(
-        "verify_signature: cert subject={:?}, cert algorithm={:?}",
-        certificate.tbs_certificate.subject,
+        "verify_signature: cert subject={:?}",
+        certificate.tbs_certificate.subject
+    );
+    log::info!(
+        "verify_signature: cert signature algorithm (CA's signature)={:?}",
         certificate.signature_algorithm.algorithm
     );
+    log::info!(
+        "verify_signature: subject public key algorithm={:?}",
+        certificate.tbs_certificate.subject_pki.algorithm.algorithm
+    );
+    log::info!(
+        "verify_signature: requested hash_algorithm={:?}",
+        hash_algorithm
+    );
+
+    // Check if the requested algorithm matches the certificate's key type
+    let cert_key_oid = &certificate.tbs_certificate.subject_pki.algorithm.algorithm;
+
+    if hash_algorithm.signature == SignatureAlgorithm::Ed25519 && cert_key_oid != &OID_ED25519 {
+        log::warn!(
+            "verify_signature: algorithm mismatch! Requested Ed25519 but cert has {:?}",
+            cert_key_oid
+        );
+    } else if hash_algorithm.signature == SignatureAlgorithm::Ecdsa && cert_key_oid != &OID_ECDSA {
+        log::warn!(
+            "verify_signature: algorithm mismatch! Requested ECDSA but cert has {:?}",
+            cert_key_oid
+        );
+    }
 
     let verify_alg: &dyn ring::signature::VerificationAlgorithm = match hash_algorithm.signature {
         SignatureAlgorithm::Ed25519 => &ring::signature::ED25519,
