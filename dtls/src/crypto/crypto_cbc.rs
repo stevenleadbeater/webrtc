@@ -9,10 +9,10 @@
 // https://github.com/RustCrypto/block-ciphers
 
 use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
-use p256::elliptic_curve::subtle::ConstantTimeEq;
 use rand::Rng;
 use std::io::Cursor;
 use std::ops::Not;
+use subtle::ConstantTimeEq;
 
 use super::padding::DtlsPadding;
 use crate::content::*;

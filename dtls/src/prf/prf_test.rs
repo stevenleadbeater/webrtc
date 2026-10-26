@@ -259,3 +259,47 @@ fn test_verify_data() -> Result<()> {
 
     Ok(())
 }
+
+// Both sides of a P-256/P-384 ECDHE exchange must derive the same pre-master
+// secret. If they don't, every handshake that negotiates those curves fails at
+// Finished. ring stands in for the peer: it is an independent implementation,
+// so an encoding or API slip in the RustCrypto curves (the 0.13 -> 0.14 port
+// that cleared RUSTSEC-2026-0387) fails here, and does not cancel out the way
+// it would between two keypairs of this crate. ring takes only uncompressed
+// points, so this also pins the wire encoding of the public key we send.
+fn assert_ecdhe_agrees_with_an_independent_peer(
+    curve: NamedCurve,
+    alg: &'static ring::agreement::Algorithm,
+) -> Result<()> {
+    let ours = curve.generate_keypair()?;
+    let rng = ring::rand::SystemRandom::new();
+    let peer = ring::agreement::EphemeralPrivateKey::generate(alg, &rng)
+        .map_err(|_| Error::Other("ring keygen failed".into()))?;
+    let peer_public = peer
+        .compute_public_key()
+        .map_err(|_| Error::Other("ring public key failed".into()))?;
+
+    let our_secret = prf_pre_master_secret(peer_public.as_ref(), &ours.private_key, curve)?;
+    let peer_secret = ring::agreement::agree_ephemeral(
+        peer,
+        &ring::agreement::UnparsedPublicKey::new(alg, &ours.public_key),
+        |k| k.to_vec(),
+    )
+    .map_err(|_| Error::Other(format!("ring rejected our {curve:?} public key")))?;
+
+    assert_eq!(
+        our_secret, peer_secret,
+        "{curve:?} pre-master secret differs from the peer's: every handshake on this curve would fail"
+    );
+    Ok(())
+}
+
+#[test]
+fn test_p256_pre_master_secret_agrees_with_an_independent_peer() -> Result<()> {
+    assert_ecdhe_agrees_with_an_independent_peer(NamedCurve::P256, &ring::agreement::ECDH_P256)
+}
+
+#[test]
+fn test_p384_pre_master_secret_agrees_with_an_independent_peer() -> Result<()> {
+    assert_ecdhe_agrees_with_an_independent_peer(NamedCurve::P384, &ring::agreement::ECDH_P384)
+}
